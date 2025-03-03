@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">My Blog</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item" id="submitArticleLink" style="display: none;">
+                        <a class="nav-link" href="/submit-article.html">Submit Article</a>
+                    </li>
+                    <li class="nav-item" id="loginLink">
+                        <a class="nav-link" href="/login.html">Login</a>
+                    </li>
+                    <li class="nav-item" id="registerLink">
+                        <a class="nav-link" href="/register.html">Register</a>
+                    </li>
+                    <li class="nav-item" id="logoutLink" style="display: none;">
+                        <a class="nav-link" href="#" id="logoutButton">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-5">
+        <div id="article"></div>
+        <div class="mt-4">
+            <h3>Add a Comment</h3>
+            <form id="addCommentForm">
+                <div class="mb-3">
+                    <label for="rate" class="form-label">Your rate</label>
+                    <input type="number" class="form-control" min="1" max="5" id="rate" required>
+                </div>
+                <div class="mb-3">
+                    <label for="content" class="form-label">Your Comment</label>
+                    <textarea class="form-control" id="content" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+        <div id="comments" class="mt-4"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./main.js"></script>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const articleId = urlParams.get('id');
+
+        fetch(`/api/articles/${articleId}`)
+            .then(response => response.json())
+            .then(article => {
+                const articleDiv = document.getElementById('article');
+                const currentUserId = localStorage.getItem('userId');
+                const isArticleCreator = article.user_id == currentUserId;
+
+                const articleHtml = `
+                    <div class="card">
+                        <div class="card-body">
+                            ${article.image ? `<img src="${article.image}" class="card-img-top" alt="${article.title}">` : ''}
+                            <h2 class="card-title">${article.title}</h2>
+                            <p class="card-text" id="articleContent">${article.content}</p>
+                            ${isArticleCreator ? `
+                                <button onclick="enableEdit()" class="btn btn-warning">Edit Article</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                articleDiv.innerHTML = articleHtml;
+
+                if (isArticleCreator) {
+                    articleDiv.innerHTML += `
+                        <div id="editForm" style="display: none;" class="mt-4">
+                            <h3>Edit Article</h3>
+                            <form id="editArticleForm">
+                                <div class="mb-3">
+                                    <label for="editTitle" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="editTitle" value="${article.title}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editContent" class="form-label">Content</label>
+                                    <textarea class="form-control" id="editContent" rows="5" required>${article.content}</textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editImage" class="form-label">Image URL</label>
+                                    <input type="text" class="form-control" id="editImage" value="${article.image || ''}">
+                                </div>
+                                <input type="hidden" class="form-control" id="articleId" value="${article.id || ''}">
+                                <button type="button" onclick="editArticle()" class="btn btn-primary">Save Changes</button>
+                                <button type="button" onclick="cancelEdit()" class="btn btn-secondary">Cancel</button>
+                            </form>
+                        </div>
+                    `;
+                }
+            });
+
+        function enableEdit() {
+            document.getElementById('editForm').style.display = 'block';
+        }
+
+        function cancelEdit() {
+            document.getElementById('editForm').style.display = 'none';
+        }
+
+        function editArticle() {
+            const title = document.getElementById('editTitle').value;
+            const content = document.getElementById('editContent').value;
+            const image = document.getElementById('editImage').value;
+            const articleId = document.getElementById('articleId').value;
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                alert('You must be logged in to edit an article.');
+                return;
+            }
+
+            fetch(`/api/articles/${articleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ title, content, image }),
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Article updated successfully!');
+                        window.location.reload();
+                    } else {
+                        alert('Failed to update article.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        };
+        function loadComments() {
+            fetch(`/api/articles/${articleId}/comments`)
+                .then(response => response.json())
+                .then(comments => {
+                    const commentsDiv = document.getElementById('comments');
+                    commentsDiv.innerHTML = '<h3>Comments</h3>';
+                    const currentUser = localStorage.getItem('username');
+
+                    comments.forEach(comment => {
+                        const commentHtml = `
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <strong>${comment.username}</strong>: ${comment.content}
+                                    <p>Rate: <span>${comment.rate}</span></p>
+                                    ${comment.username === currentUser ? `
+                                        <button onclick="deleteComment(${comment.id})" class="btn btn-danger btn-sm">Delete</button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                        commentsDiv.innerHTML += commentHtml;
+                    });
+                });
+        }
+
+        function deleteComment(commentId) {
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                alert('You must be logged in to delete a comment.');
+                return;
+            }
+
+            if (confirm('Are you sure you want to delete this comment?')) {
+                fetch(`/api/comments/${commentId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('Comment deleted successfully!');
+                            loadComments();
+                        } else {
+                            alert('Failed to delete comment.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+        }
+
+        loadComments();
+        document.getElementById('addCommentForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const rate = document.getElementById('rate').value;
+            const content = document.getElementById('content').value;
+            const token = localStorage.getItem('token');
+
+            fetch(`/api/articles/${articleId}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ rate, content }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error == 'Unauthorized') {
+                        alert('Please login!');
+                    } else {
+                        alert('Comment added successfully!');
+                        loadComments();
+                        document.getElementById('addCommentForm').reset();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        });
+    </script>
+</body>
+</html>
