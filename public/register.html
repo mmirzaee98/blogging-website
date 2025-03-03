@@ -76,14 +76,23 @@
                 },
                 body: JSON.stringify({ username, password, email, image }),
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errorData => {
+                            throw new Error(errorData.error || 'Registration failed');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     alert('Registration successful!');
                     window.location.href = '/login.html';
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    alert(error.message);
                 });
+
         });
     </script>
 </body>
