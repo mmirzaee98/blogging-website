@@ -43,22 +43,55 @@ db.serialize(() => {
 
 });
 
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function isValidPassword(password) {
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    return passwordRegex.test(password);
+}
+
 router.post('/register', async (req, res) => {
     const { username, password, email, image } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
 
-    db.run(
-        'INSERT INTO users (username, password, email, image) VALUES (?, ?, ?, ?)',
-        [username, hashedPassword, email, image],
-        function (err) {
-            if (err) {
-                res.status(400).json({ error: err.message });
-                return;
-            }
-            res.json({ id: this.lastID });
+    if (!isValidPassword(password)) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters long and contain at least one letter and one number' });
+    }
+
+    db.get('SELECT * FROM users WHERE username = ?', [username], async (err, row) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
         }
-    );
+        if (row) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+
+        db.get('SELECT * FROM users WHERE email = ?', [email], async (err, row) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database error' });
+            }
+            if (row) {
+                return res.status(400).json({ error: 'Email already exists' });
+            }
+            const hashedPassword = await bcrypt.hash(password, 10);
+            db.run(
+                'INSERT INTO users (username, password, email, image) VALUES (?, ?, ?, ?)',
+                [username, hashedPassword, email, image],
+                function (err) {
+                    if (err) {
+                        return res.status(400).json({ error: err.message });
+                    }
+                    res.json({ id: this.lastID });
+                }
+            );
+        });
+    });
 });
 
 router.post('/login', (req, res) => {

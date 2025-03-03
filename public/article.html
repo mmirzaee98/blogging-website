@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Article</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mustache@4.2.0/mustache.min.js"></script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -56,6 +57,54 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="./main.js"></script>
 
+    <!-- Mustache Templates -->
+    <script id="articleTemplate" type="x-tmpl-mustache">
+        <div class="card">
+            <div class="card-body">
+                {{#image}}<img src="{{image}}" class="card-img-top" alt="{{title}}">{{/image}}
+                <h2 class="card-title">{{title}}</h2>
+                <p class="card-text" id="articleContent">{{content}}</p>
+                {{#isArticleCreator}}
+                    <button onclick="enableEdit()" class="btn btn-warning">Edit Article</button>
+                {{/isArticleCreator}}
+            </div>
+        </div>
+        {{#isArticleCreator}}
+        <div id="editForm" style="display: none;" class="mt-4">
+            <h3>Edit Article</h3>
+            <form id="editArticleForm">
+                <div class="mb-3">
+                    <label for="editTitle" class="form-label">Title</label>
+                    <input type="text" class="form-control" id="editTitle" value="{{title}}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="editContent" class="form-label">Content</label>
+                    <textarea class="form-control" id="editContent" rows="5" required>{{content}}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="editImage" class="form-label">Image URL</label>
+                    <input type="text" class="form-control" id="editImage" value="{{image}}">
+                </div>
+                <input type="hidden" class="form-control" id="articleId" value="{{id}}">
+                <button type="button" onclick="editArticle()" class="btn btn-primary">Save Changes</button>
+                <button type="button" onclick="cancelEdit()" class="btn btn-secondary">Cancel</button>
+            </form>
+        </div>
+        {{/isArticleCreator}}
+    </script>
+
+    <script id="commentTemplate" type="x-tmpl-mustache">
+        <div class="card mb-2">
+            <div class="card-body">
+                <strong>{{username}}</strong>: {{content}}
+                <p>Rate: <span>{{rate}}</span></p>
+                {{#isCurrentUser}}
+                    <button onclick="deleteComment({{id}})" class="btn btn-danger btn-sm">Delete</button>
+                {{/isCurrentUser}}
+            </div>
+        </div>
+    </script>
+
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const articleId = urlParams.get('id');
@@ -67,44 +116,12 @@
                 const currentUserId = localStorage.getItem('userId');
                 const isArticleCreator = article.user_id == currentUserId;
 
-                const articleHtml = `
-                    <div class="card">
-                        <div class="card-body">
-                            ${article.image ? `<img src="${article.image}" class="card-img-top" alt="${article.title}">` : ''}
-                            <h2 class="card-title">${article.title}</h2>
-                            <p class="card-text" id="articleContent">${article.content}</p>
-                            ${isArticleCreator ? `
-                                <button onclick="enableEdit()" class="btn btn-warning">Edit Article</button>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-                articleDiv.innerHTML = articleHtml;
-
-                if (isArticleCreator) {
-                    articleDiv.innerHTML += `
-                        <div id="editForm" style="display: none;" class="mt-4">
-                            <h3>Edit Article</h3>
-                            <form id="editArticleForm">
-                                <div class="mb-3">
-                                    <label for="editTitle" class="form-label">Title</label>
-                                    <input type="text" class="form-control" id="editTitle" value="${article.title}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="editContent" class="form-label">Content</label>
-                                    <textarea class="form-control" id="editContent" rows="5" required>${article.content}</textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="editImage" class="form-label">Image URL</label>
-                                    <input type="text" class="form-control" id="editImage" value="${article.image || ''}">
-                                </div>
-                                <input type="hidden" class="form-control" id="articleId" value="${article.id || ''}">
-                                <button type="button" onclick="editArticle()" class="btn btn-primary">Save Changes</button>
-                                <button type="button" onclick="cancelEdit()" class="btn btn-secondary">Cancel</button>
-                            </form>
-                        </div>
-                    `;
-                }
+                const template = document.getElementById('articleTemplate').innerHTML;
+                const view = {
+                    ...article,
+                    isArticleCreator: isArticleCreator
+                };
+                articleDiv.innerHTML = Mustache.render(template, view);
             });
 
         function enableEdit() {
@@ -147,27 +164,22 @@
                     console.error('Error:', error);
                 });
         };
+
         function loadComments() {
             fetch(`/api/articles/${articleId}/comments`)
                 .then(response => response.json())
                 .then(comments => {
                     const commentsDiv = document.getElementById('comments');
-                    commentsDiv.innerHTML = '<h3>Comments</h3>';
+                    const template = document.getElementById('commentTemplate').innerHTML;
                     const currentUser = localStorage.getItem('username');
 
+                    commentsDiv.innerHTML = '<h3>Comments</h3>';
                     comments.forEach(comment => {
-                        const commentHtml = `
-                            <div class="card mb-2">
-                                <div class="card-body">
-                                    <strong>${comment.username}</strong>: ${comment.content}
-                                    <p>Rate: <span>${comment.rate}</span></p>
-                                    ${comment.username === currentUser ? `
-                                        <button onclick="deleteComment(${comment.id})" class="btn btn-danger btn-sm">Delete</button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `;
-                        commentsDiv.innerHTML += commentHtml;
+                        const view = {
+                            ...comment,
+                            isCurrentUser: comment.username === currentUser
+                        };
+                        commentsDiv.innerHTML += Mustache.render(template, view);
                     });
                 });
         }
