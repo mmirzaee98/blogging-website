@@ -1,5 +1,5 @@
-.card-img-top {
+.article-image {
     width: 80%;
-    max-height: 300px;
-    object-fit: cover; /* Keeps aspect ratio but crops overflow */
+    aspect-ratio: 16 / 9;  /* or 4 / 3 depending on your design */
+    object-fit: cover;
 }
