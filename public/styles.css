@@ -1,0 +1,5 @@
+.card-img-top {
+    width: 80%;
+    max-height: 300px;
+    object-fit: cover; /* Keeps aspect ratio but crops overflow */
+}
