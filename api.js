@@ -234,6 +234,8 @@ router.post('/articles/:id/comments', authenticateToken, (req, res) => {
     const articleId = req.params.id;
     const { rate, content } = req.body;
     const user_id = req.user.id;
+
+    // db.run('INSERT INTO comments (article_id, user_id, content, rate) VALUES (?, ?, ?,)'
     db.run('INSERT INTO comments (article_id, user_id, content, rate) VALUES (?, ?, ?, ?)', [articleId, user_id, content, rate], function (err) {
         if (err) {
             res.status(500).json({ error: err.message });
@@ -245,6 +247,7 @@ router.post('/articles/:id/comments', authenticateToken, (req, res) => {
 
 router.get('/articles/:id/comments', (req, res) => {
     const articleId = req.params.id;
+    //db.all('SELECT * FROM comments WHERE article_id = ?', [articleId], (err, rows) => {
     db.all('SELECT comments.*, users.username FROM comments JOIN users ON comments.user_id = users.id WHERE comments.article_id = ?;', [articleId], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
