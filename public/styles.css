@@ -1,5 +1,6 @@
 .article-image {
     width: 80%;
-    aspect-ratio: 16 / 9;  /* or 4 / 3 depending on your design */
+    aspect-ratio: 16 / 9;  
     object-fit: cover;
 }
+
