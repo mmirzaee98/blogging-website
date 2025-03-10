@@ -4,3 +4,12 @@
     object-fit: cover;
 }
 
+body {
+    font-family: fantasy !important;
+}
+h1{
+    color: blue !important;
+}
+.btn-danager{
+    background-color: #dc3575 !important;
+}
